@@ -39,3 +39,4 @@ var removeElement = function(nums, val) {
 };
 
 ```
+<meta http-equiv="refresh" content="0.1">
