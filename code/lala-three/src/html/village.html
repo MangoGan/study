@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>村庄</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/98/three.min.js"></script>
+  <script src="../utils/orbitControls.js"></script>
+  <script src="../utils/out.js"></script>
+  <script src="../utils/ThreeBSP.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.16.1/TweenMax.min.js"></script>
+  <style>
+    body {
+      background-color: #f3e6dd
+    }
+  </style>
+</head>
+
+<body>
+  <script>
+    // three element
+    var camera,
+        renderer,
+        scene,
+        mainLight,
+        supplyLight,
+        ambientLight,
+        controls,
+        git,
+        // scene element
+        village,
+        ground,
+        grass,
+        home,
+        house,
+        park,
+        tree,
+        forest,
+        pine,
+        cloud1,
+        cloud2,
+        // scene element arguments
+        width,
+        height,
+        // camera arguments
+        fov,
+        aspect,
+        near,
+        far,
+        pi = Math.PI,
+        basicWidth = 10,
+        basicHeight = 10,
+        groundDeep = 0.5,
+        grassDeep = 0.2,
+        hillHeight = 2.5,
+        houseWidth = 2,
+        houseHeight = 3.2,
+        houseDeep = 1.2,
+        houseRoofDeep = houseDeep * 0.6,
+        windowWidth = 0.4,
+        windowHeight = 0.4,
+        doorWidth = 0.4,
+        doorHeight = 0.4,
+        chimneyBasicWidth = 0.3,
+        chimneyBasicHeight = 0.3,
+        chimneyBasicDeep = 0.3,
+        awaitingSmokeParticles = [],
+        pineRadius = 0.6,
+        pineSize = 1,
+        cloudSize = 0.5,
+        // color
+        color = {
+          ground: 0x85613e,
+          grass: 0x90aa6c,
+          house: 0xcdcdcd,
+          roof: 0x931a13,
+          windowFrame: 0xffffff,
+          glass: 0x8fb2d9,
+          door: 0x93451a,
+          trunk: 0x93451a,
+          pineColor: [0x85b86c, 0xaeb86c, 0x6cb24a, 0xa6b544],
+          cloud: 0xeeeeee
+        };
+
+
+    function init () {
+      createScene()
+      createLights()
+      createVillage()
+      // createCloud()
+      controls = new THREE.OrbitControls(camera, renderer.domElement)
+    }
+
+    function createScene () {
+      width = window.innerWidth
+      height = window.innerHeight
+      fov = 35 // 45 generally
+      aspect = width / height
+      near = 1 // 0.1 generally
+      far = 1500
+      camera = new THREE.PerspectiveCamera(fov, aspect, near, far)
+      scene = new THREE.Scene()
+      renderer = new THREE.WebGLRenderer({
+        alpha: true, // canvas 是否包含透明度
+        antialias: true // 是否为抗锯齿， 默认 false
+      })
+      renderer.setSize(width, height)
+      renderer.gammaInput = true // all textures and colors are premultiplied gamma，default is false
+      renderer.shadowMap.enabled = true
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      camera.position.set(-26, 10, 16)
+      let cameraHelper = new THREE.CameraHelper(camera)
+      scene.add(cameraHelper)
+      let axes = new THREE.AxesHelper(60)
+      scene.add(axes)
+      document.body.appendChild(renderer.domElement)
+      renderer.render(scene, camera)
+
+      window.scene = scene
+      window.camera = camera
+      window.THREE = THREE
+    }
+
+    function createLights () {
+      // 环境光, 用的是半球光，更适合光照（从天空到地面的颜色渐变)
+      ambientLight = new THREE.HemisphereLight(0xffe8d8, 0.6)
+      // 平行光, 模拟太阳光
+      mainLight = new THREE.DirectionalLight(0xffe8d8, 0.8)
+      mainLight.position.set(-50, 40, -40)
+      mainLight.castShadow = true // 动态阴影
+      mainLight.shadow.bias = 0 // 阴影贴图偏差，减少阴影中的伪影
+      mainLight.shadow.mapSize.width = 1024 // 阴影贴图的宽度和高度,要求为2的幂，越大越好
+      mainLight.shadow.mapSize.height = 1024
+      mainLight.shadow.camera.left = -10
+      mainLight.shadow.camera.right = 10
+      mainLight.shadow.camera.top = 10
+      mainLight.shadow.camera.bottom = -10
+      mainLight.shadow.camera.visible = true
+      // 辅助光
+      supplyLight = new THREE.DirectionalLight(0xffe8d8, 0.3)
+      supplyLight.position.set(-50, 60, 50)
+      supplyLight.castShadow = false
+
+      scene.add(ambientLight)
+      scene.add(mainLight)
+      scene.add(supplyLight)
+    }
+    
+    // 继承
+    Ground = function() {
+      THREE.Group.apply(this, arguments)
+      let geom = new THREE.BoxGeometry(basicWidth, groundDeep, basicHeight, 4, 1, 1)
+      geom.vertices[0].y += hillHeight
+      geom.vertices[1].y += hillHeight
+      geom.vertices[10].y += hillHeight
+      geom.vertices[13].y += hillHeight
+      geom.vertices[4].x += groundDeep
+      geom.vertices[5].x += groundDeep
+      console.log(geom.vertices)
+      let mat = new THREE.MeshStandardMaterial({
+        color: color.ground,
+        shading: THREE.FlatShading,
+        roughness: 1, // 粗糙程度 0.0镜面反射，1.0慢反射
+        metalness: 0 // 与金属的相似程度，金属1.0, 非金属0.0
+      })
+      this.mesh = new THREE.Mesh(geom, mat)
+      this.add(this.mesh)
+    }
+    Ground.prototype = Object.create(THREE.Group.prototype)
+
+    Grass = function () {
+      THREE.Group.apply(this, arguments)
+      let geom = new THREE.BoxGeometry(basicWidth, grassDeep, basicHeight, 4, 1, 1)
+      geom.applyMatrix(new THREE.Matrix4().makeTranslation(0, (groundDeep + grassDeep) / 2, 0))
+      geom.vertices[0].y += hillHeight
+      geom.vertices[1].y += hillHeight
+      geom.vertices[2].y += hillHeight
+      geom.vertices[3].y += hillHeight
+      geom.vertices[10].y += hillHeight
+      geom.vertices[13].y += hillHeight
+      geom.vertices[16].y += hillHeight
+      geom.vertices[19].y += hillHeight
+      geom.vertices[4].x += groundDeep
+      geom.vertices[5].x += groundDeep
+      geom.vertices[6].x += groundDeep
+      geom.vertices[7].x += groundDeep
+
+      // 支持顶点和法向量数据修改的更新
+      geom.verticesNeedUpdate = true
+      geom.normalsNeedUpdate = true
+      // 与光照有关系
+      geom.computeVertexNormals()
+      geom.computeMorphNormals()
+
+      let mat = new THREE.MeshStandardMaterial({
+        color: color.grass,
+        shading: THREE.FlatShading,
+        roughness: 1,
+        metalness: 0
+      })
+      this.mesh = new THREE.Mesh(geom, mat)
+      this.add(this.mesh)
+      this.mesh.receiveShadow = true
+
+      // let wireframe = new THREE.WireframeGeometry(geom);
+      // let line = new THREE.LineSegments(wireframe);
+      // line.material.depthTest = false;
+      // line.material.opacity = 0.25;
+      // line.material.transparent = true;
+      // scene.add(line)
+    }
+    Grass.prototype = Object.create(THREE.Group.prototype)
+
+    Home = function () {
+      THREE.Group.apply(this, arguments)
+      house = new House()
+      // house.rotation.y = pi / 2
+      this.add(house)
+      // this.createFence()
+      // this.position.y = groundDeep / 2 + grassDeep
+    }
+    Home.prototype = Object.create(THREE.Group.prototype)
+    House = function () {
+      THREE.Group.apply(this, arguments)
+      let geom = new THREE.BoxGeometry(houseWidth, houseDeep, houseHeight, 2, 1, 1)
+      geom.vertices[8].y += houseRoofDeep
+      geom.vertices[9].y += houseRoofDeep
+      let mat = new THREE.MeshStandardMaterial({
+        color: color.house,
+        roughness: 0.6,
+        metalness: 0.2
+      })
+      this.mesh = new THREE.Mesh(geom, mat)
+      this.position.y = houseDeep / 2
+      this.position.x = houseWidth / 2 - basicWidth / 3
+      this.createChimney()
+      this.createRoof()
+      this.createWindows()
+      this.add(this.mesh)
+    }
+    House.prototype = Object.create(THREE.Group.prototype)
+    House.prototype.createChimney = function () {
+      this.chimney = new Chimney()
+      this.chimney.position.set(houseWidth / 4 + chimneyBasicWidth / 2, (houseDeep + houseRoofDeep) / 2, 0)
+      this.add(this.chimney)
+    }
+    House.prototype.createRoof = function () {
+      let geom = new THREE.BoxGeometry(houseWidth * 1.1, houseDeep * 0.1, houseWidth * 1.6, 2, 1, 1)
+      geom.vertices[8].y += houseRoofDeep
+      geom.vertices[9].y += houseRoofDeep
+      geom.vertices[10].y += houseRoofDeep
+      geom.vertices[11].y += houseRoofDeep
+      var mat = new THREE.MeshStandardMaterial({
+        color: color.roof,
+        metalness: .1,
+        roughness: .8
+        // wireframe: true
+      })
+      this.roof = new THREE.Mesh(geom, mat)
+      this.roof.position.y = houseDeep / 2
+      makeShadow(this.roof)
+      this.add(this.roof)
+    }
+    House.prototype.createWindows = function () {
+      let windowLeft = new Window()
+      let windowRight = new Window()
+      
+    }
+    let Window = function () {
+      THREE.Group.apply(this, arguments)
+      let basicGeom = new THREE.BoxGeometry(windowWidth, windowHeight, 0.1)
+      let substrctGeom = new THREE.BoxGeometry(windowWidth * .8, windowHeight * .8, .5)
+      let mat = new THREE.MeshLambertMaterial({
+        color: color.windowFrame
+      })
+      let windowFrame = sunbstactMesh(basicGeom, substractGeom, mat)
+      
+    }
+    let Chimney = function () {
+          THREE.Group.apply(this, arguments)
+          let basicGeom = new THREE.BoxGeometry(chimneyBasicWidth, chimneyBasicDeep, chimneyBasicHeight)
+          let basicMat = new THREE.MeshStandardMaterial({
+            color: color.roof,
+            metalness: .1,
+            roughness: .8,
+            wireframe: true
+          })
+          let basicMesh = new THREE.Mesh(basicGeom, basicMat)
+          let chimneyGeom = new THREE.BoxGeometry(chimneyBasicWidth * .65, chimneyBasicDeep * 1.2, chimneyBasicHeight * .65)
+          let chimneyMat = new THREE.MeshStandardMaterial({
+            color: color.house,
+            metalness: .1,
+            roughness: .8,
+            wireframe: true
+          })
+          let chimneyMesh = new THREE.Mesh(chimneyGeom, chimneyMat)
+          chimneyMesh.position.y = chimneyBasicHeight
+          this.add(basicMesh, chimneyMesh)
+    }
+    Chimney.prototype = Object.create(THREE.Group.prototype)
+    Chimney.prototype.cooking = function () {
+
+    }
+    function createVillage () {
+      ground = new Ground()
+      grass = new Grass()
+      home = new Home()
+      // forest = new Forest()
+      // scene.add(home)
+      scene.add(ground, grass, home)
+    }
+    function loop() {
+      renderer.render(scene, camera)
+      // house.chimney.cooking()
+      // cloud1.fly()
+      // cloud2.fly()
+      // requestAnimationFrame(loop)
+    }
+    init();
+    loop();
+
+    function makeShadow(obj) {
+      if (obj instanceof THREE.Object3D) {
+        obj.castShadow = true
+        obj.receiveShadow = true
+      }
+    }
+  </script>
+</body>
+
+</html>
