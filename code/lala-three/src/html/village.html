@@ -11,6 +11,7 @@
   <script src="../utils/out.js"></script>
   <script src="../utils/ThreeBSP.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/1.16.1/TweenMax.min.js"></script>
+  <script src="https://mrdoob.github.io/stats.js/build/stats.min.js"></script>
   <style>
     body {
       background-color: #f3e6dd
@@ -21,7 +22,8 @@
 <body>
   <script>
     // three element
-    var camera,
+    var stats,
+        camera,
         renderer,
         scene,
         mainLight,
@@ -56,13 +58,13 @@
         grassDeep = 0.2,
         hillHeight = 2.5,
         houseWidth = 2,
-        houseHeight = 3.2,
+        houseHeight = 2.2,
         houseDeep = 1.2,
         houseRoofDeep = houseDeep * 0.6,
         windowWidth = 0.4,
         windowHeight = 0.4,
         doorWidth = 0.4,
-        doorHeight = 0.4,
+        doorHeight = 0.7,
         chimneyBasicWidth = 0.3,
         chimneyBasicHeight = 0.3,
         chimneyBasicDeep = 0.3,
@@ -89,7 +91,7 @@
       createScene()
       createLights()
       createVillage()
-      // createCloud()
+      createClouds()
       controls = new THREE.OrbitControls(camera, renderer.domElement)
     }
 
@@ -111,8 +113,8 @@
       renderer.shadowMap.enabled = true
       renderer.shadowMap.type = THREE.PCFSoftShadowMap
       camera.position.set(-26, 10, 16)
-      let cameraHelper = new THREE.CameraHelper(camera)
-      scene.add(cameraHelper)
+      // let cameraHelper = new THREE.CameraHelper(camera)
+      // scene.add(cameraHelper)
       let axes = new THREE.AxesHelper(60)
       scene.add(axes)
       document.body.appendChild(renderer.domElement)
@@ -158,7 +160,6 @@
       geom.vertices[13].y += hillHeight
       geom.vertices[4].x += groundDeep
       geom.vertices[5].x += groundDeep
-      console.log(geom.vertices)
       let mat = new THREE.MeshStandardMaterial({
         color: color.ground,
         shading: THREE.FlatShading,
@@ -188,11 +189,11 @@
       geom.vertices[7].x += groundDeep
 
       // 支持顶点和法向量数据修改的更新
-      geom.verticesNeedUpdate = true
-      geom.normalsNeedUpdate = true
+      // geom.verticesNeedUpdate = true
+      // geom.normalsNeedUpdate = true
       // 与光照有关系
-      geom.computeVertexNormals()
-      geom.computeMorphNormals()
+      // geom.computeVertexNormals()
+      // geom.computeMorphNormals()
 
       let mat = new THREE.MeshStandardMaterial({
         color: color.grass,
@@ -216,12 +217,34 @@
     Home = function () {
       THREE.Group.apply(this, arguments)
       house = new House()
-      // house.rotation.y = pi / 2
+      house.rotation.y = pi / 2
       this.add(house)
-      // this.createFence()
-      // this.position.y = groundDeep / 2 + grassDeep
+      this.createFence()
+      this.position.y = groundDeep / 2 + grassDeep
     }
     Home.prototype = Object.create(THREE.Group.prototype)
+    Home.prototype.createFence = function () {
+      let geom = new THREE.BoxGeometry(0.05, 0.5, 0.15)
+      // 平移矩阵
+      geom.applyMatrix(new THREE.Matrix4().makeTranslation(-0.3, 0.5 / 2, -basicWidth / 2))
+      let mat = new THREE.MeshLambertMaterial({
+        color: 0xffffff,
+        metalness: 0,
+        roughness: 0.8
+      })
+      for (var i = 0; i < 20; i++) {
+        let mesh = new THREE.Mesh(geom, mat)
+        makeShadow(mesh)
+        mesh.position.z = (i + 0.5) * basicWidth / 20
+        this.add(mesh)
+      }
+      geom = new THREE.BoxGeometry(0.05, 0.15, basicWidth)
+      geom.applyMatrix(new THREE.Matrix4().makeTranslation(-.3, .5 / 2, 0))
+      let mesh = new THREE.Mesh(geom, mat)
+      makeShadow(mesh)
+      this.add(mesh)
+    }
+
     House = function () {
       THREE.Group.apply(this, arguments)
       let geom = new THREE.BoxGeometry(houseWidth, houseDeep, houseHeight, 2, 1, 1)
@@ -238,6 +261,8 @@
       this.createChimney()
       this.createRoof()
       this.createWindows()
+      this.createDoor()
+      makeShadow(this.mesh)
       this.add(this.mesh)
     }
     House.prototype = Object.create(THREE.Group.prototype)
@@ -247,7 +272,7 @@
       this.add(this.chimney)
     }
     House.prototype.createRoof = function () {
-      let geom = new THREE.BoxGeometry(houseWidth * 1.1, houseDeep * 0.1, houseWidth * 1.6, 2, 1, 1)
+      let geom = new THREE.BoxGeometry(houseWidth * 1.1, houseDeep * 0.1, houseHeight * 1.1, 2, 1, 1)
       geom.vertices[8].y += houseRoofDeep
       geom.vertices[9].y += houseRoofDeep
       geom.vertices[10].y += houseRoofDeep
@@ -264,20 +289,138 @@
       this.add(this.roof)
     }
     House.prototype.createWindows = function () {
-      let windowLeft = new Window()
-      let windowRight = new Window()
-      
+      var windowLeft = new Window()
+      var windowRight = new Window()
+      windowLeft.position.z = -houseHeight / 2
+      windowLeft.position.x = -houseWidth / 4
+      windowLeft.position.y = houseWidth / 5
+      windowRight.position.z = -houseHeight / 2
+      windowRight.position.x = houseWidth / 4
+      windowRight.position.y = houseWidth / 5
+      this.add(windowLeft, windowRight)
     }
-    let Window = function () {
-      THREE.Group.apply(this, arguments)
-      let basicGeom = new THREE.BoxGeometry(windowWidth, windowHeight, 0.1)
-      let substrctGeom = new THREE.BoxGeometry(windowWidth * .8, windowHeight * .8, .5)
-      let mat = new THREE.MeshLambertMaterial({
+    House.prototype.createDoor = function () {
+      var basicGeom = new THREE.BoxGeometry(doorWidth, doorHeight, .1)
+      var substractGeom = new THREE.BoxGeometry(doorWidth * .8, doorHeight * .9, .5)
+      var mat = new THREE.MeshLambertMaterial({
         color: color.windowFrame
       })
-      let windowFrame = sunbstactMesh(basicGeom, substractGeom, mat)
-      
+      this.doorFrame = substractMesh(basicGeom, substractGeom, mat)
+      this.doorFrame.position.z -= houseHeight / 2
+      this.doorFrame.position.y = (doorHeight - houseDeep * 1.1) / 2
+      var doorGeom = new THREE.BoxGeometry(doorWidth * .8, doorHeight * .9, .05)
+      var doorMat = new THREE.MeshLambertMaterial({
+        color: color.door
+      })
+      this.door = new THREE.Mesh(doorGeom, doorMat)
+      this.door.position.z -= houseHeight / 2
+      this.door.position.y = (doorHeight - houseDeep * 1.1) / 2
+      this.add(this.doorFrame, this.door)
     }
+    Forest = function () {
+      THREE.Group.apply(this, arguments)
+      let w = Math.floor(basicWidth / pineSize) - 1
+      let h = Math.floor(basicHeight / pineSize / 4)
+      console.log(w, h, basicHeight, pineSize, basicWidth)
+      for (let i = 1; i <= h; i++) {
+        for (let j = 0; j <= w; j++) {
+          let pineColor = color.pineColor[Math.floor(Math.random() * color.pineColor.length)]
+          let pine = new Pine(pineColor)
+          let noise = 0.2 * Math.random() - 0.1
+          let s = 1 + 0.8 * Math.random()
+          pine.scale.set(s, s, s)
+          pine.position.set(basicWidth * -0.05 + i * pineSize + noise, noise, (basicHeight / 4 - pineSize) * -0.05 + j * pineSize + noise)
+          this.add(pine)
+        }
+      }
+      this.position.y = 3.8
+      this.position.z = pineSize / 2 - basicWidth / 2
+      this.position.x = basicHeight / 3.5
+    }
+    Forest.prototype = Object.create(THREE.Group.prototype)
+    Pine = function (pineColor) {
+      THREE.Group.apply(this, arguments)
+      let geom = new THREE.ConeGeometry(pineRadius, pineSize, 6, 3)
+      let leafMat = new THREE.MeshStandardMaterial({
+        color: pineColor,
+        roughness: 1,
+        metalness: 0.2,
+        shading: THREE.FlatShading
+      })
+      let a = pineSize / 5
+      for (let i = 0; i < 3; i++) {
+        let leaf = new THREE.Mesh(geom, leafMat)
+        let s = Math.pow(0.8, i)
+        leaf.scale.set(s, s, s)
+        for (let j = 0; j < leaf.geometry.vertices.length; j++) {
+          let v = leaf.geometry.vertices[j]
+          v.x += 0.05 * (Math.random() - 1)
+          v.z += 0.05 * (Math.random() - 1)
+        }
+        leaf.rotation.y += Math.random() * 0.5
+        leaf.position.y = i * a + 0.1
+        makeShadow(leaf)
+        this.add(leaf)
+      }
+    }
+    Pine.prototype = Object.create(THREE.Group.prototype)
+    Cloud = function (arc) {
+      THREE.Group.apply(this, arguments)
+      this.arc = arc
+      let geom = new THREE.SphereGeometry(cloudSize, 6, 6)
+      for (let i = 0; i < geom.vertices.length; i++) {
+        let v = geom.vertices[i]
+        if (v.y < 0) {
+          v.y = 0
+        }
+      }
+      let mat = new THREE.MeshStandardMaterial({
+        color: color.cloud,
+        roughness: 0.8,
+        metalness: 0.1,
+        flatShading: THREE.FlatShading
+      })
+      // 阿基米德螺线
+      for (let j = 0; j < pi;) {
+        let mesh = new THREE.Mesh(geom, mat)
+        makeShadow(mesh)
+        mesh.position.x = 0.7 * j * Math.cos(0.5 * j) + Math.random() * 0.8
+        mesh.position.z = .7 * j * Math.sin(.5 * j) + Math.random() * .8
+        mesh.position.y = j * -.1 + Math.random() * .8
+        j = j + pi / 6
+        this.add(mesh)
+      }
+    }
+    Cloud.prototype = Object.create(THREE.Group.prototype)
+    Cloud.prototype.fly = function () {
+      this.position.z = basicWidth / 2 * Math.sin(this.arc)
+      this.arc += 0.005
+    }
+    function createClouds() {
+      cloud1 = new Cloud(0)
+      cloud1.position.y = hillHeight * 2
+      cloud1.rotation.y = pi / 4
+      cloud2 = new Cloud(pi)
+      cloud2.position.y = hillHeight * 1.5
+      cloud2.position.x -= basicWidth / 1.5
+      scene.add(cloud1, cloud2)
+    }
+    Window = function () {
+      THREE.Group.apply(this, arguments)
+      var basicGeom = new THREE.BoxGeometry(windowWidth, windowHeight, .1)
+      var substractGeom = new THREE.BoxGeometry(windowWidth * .8, windowHeight * .8, .5)
+      var mat = new THREE.MeshLambertMaterial({
+        color: color.windowFrame
+      })
+      var windowFrame = substractMesh(basicGeom, substractGeom, mat)
+      var geom = new THREE.BoxGeometry(windowWidth * .8, windowHeight * .8, .05)
+      var mat = new THREE.MeshPhongMaterial({
+        color: color.glass
+      })
+      var glass = new THREE.Mesh(geom, mat)
+      this.add(windowFrame, glass)
+    }
+    Window.prototype = Object.create(THREE.Group.prototype)
     let Chimney = function () {
           THREE.Group.apply(this, arguments)
           let basicGeom = new THREE.BoxGeometry(chimneyBasicWidth, chimneyBasicDeep, chimneyBasicHeight)
@@ -285,7 +428,7 @@
             color: color.roof,
             metalness: .1,
             roughness: .8,
-            wireframe: true
+            // wireframe: true
           })
           let basicMesh = new THREE.Mesh(basicGeom, basicMat)
           let chimneyGeom = new THREE.BoxGeometry(chimneyBasicWidth * .65, chimneyBasicDeep * 1.2, chimneyBasicHeight * .65)
@@ -293,7 +436,7 @@
             color: color.house,
             metalness: .1,
             roughness: .8,
-            wireframe: true
+            // wireframe: true
           })
           let chimneyMesh = new THREE.Mesh(chimneyGeom, chimneyMat)
           chimneyMesh.position.y = chimneyBasicHeight
@@ -301,32 +444,151 @@
     }
     Chimney.prototype = Object.create(THREE.Group.prototype)
     Chimney.prototype.cooking = function () {
-
+      let p = getSmokeParticle()
+      p.mesh.position.set(0, 0, 0)
+      p.mesh.position.x = -chimneyBasicWidth * 0.65 / 4
+      p.mesh.position.y = chimneyBasicDeep * 1.3
+      p.mesh.position.z = 0
+      p.mesh.material.color.setHex(0x777777)
+      p.mesh.material.opacity = 0.2
+      this.add(p.mesh)
+      p.fly()
+    }
+    SmokeParticle = function () {
+      this.color = {
+        r: 0,
+        g: 0,
+        b: 0
+      }
+      let particleMat = new THREE.MeshLambertMaterial({
+        transparent: true,
+        opacity: 0.5,
+        flatShading: THREE.FlatShading // 平坦着色与平滑着色
+      })
+      this.mesh = makeCube(particleMat, 0.04, 0.04, 0.04, 0, 0, 0, 0, 0, 0)
+      awaitingSmokeParticles.push(this)
+    }
+    SmokeParticle.prototype.kill = function () {
+      scene.remove(this.mesh)
+    }
+    SmokeParticle.prototype.updateColor = function () {
+      this.mesh.material.color.setRGB(this.color.r, this.color.g, this.color.b)
+    }
+    SmokeParticle.prototype.fly = function () {
+      let _this = this
+      let speed = 20
+      let ease = Strong.easeOut
+      let initX = this.mesh.position.x
+      let initY = this.mesh.position.y
+      let initZ = this.mesh.position.z
+      let bezier = {
+        type: 'cubic',
+        values: [{
+          x: initX,
+          y: initY,
+          z: initZ
+        }, {
+          x: initX + .3 - Math.random() * .1,
+          y: initY + .2 + Math.random() * .2,
+          z: initZ + .2
+        }, {
+          x: initX + .1 + Math.random() * .2,
+          y: initY + .4 + Math.random() * .5,
+          z: initZ - .3
+        }, {
+          x: initX + .5 - Math.random() * .2,
+          y: initY + 1.7 + Math.random() * .1,
+          z: initZ + .2
+        }]
+      }
+      TweenMax.to(this.mesh.position, speed, {
+        bezier: bezier,
+        ease: ease
+      })
+      TweenMax.to(this.mesh.rotation, speed, {
+        x: Math.random() * Math.PI * 3,
+        y: Math.random() * Math.PI * 3,
+        ease: ease
+      })
+      TweenMax.to(this.mesh.scale, speed, {
+        x: 0.5 + Math.random() * 5,
+        y: 0.5 + Math.random() * 5,
+        z: 0.5 + Math.random() * 5,
+        ease: ease
+      })
+      TweenMax.to(this.mesh.material, speed, {
+        opacity: 0,
+        ease: ease,
+        onComplete: function () {
+          _this.kill()
+        }
+      })
     }
     function createVillage () {
       ground = new Ground()
       grass = new Grass()
       home = new Home()
-      // forest = new Forest()
-      // scene.add(home)
-      scene.add(ground, grass, home)
+      forest = new Forest()
+      scene.add(ground, grass, home, forest)
     }
     function loop() {
+      stats.begin()
       renderer.render(scene, camera)
-      // house.chimney.cooking()
-      // cloud1.fly()
-      // cloud2.fly()
-      // requestAnimationFrame(loop)
+      house.chimney.cooking()
+      cloud1.fly()
+      cloud2.fly()
+      stats.end()
+      requestAnimationFrame(loop)
     }
-    init();
-    loop();
-
-    function makeShadow(obj) {
+    function initStats () {
+      stats = new Stats();
+      stats.showPanel(1); // 0: fps, 1: ms, 2: mb, 3+: custom
+      document.body.appendChild( stats.dom );
+    }
+    initStats()
+    init()
+    loop()
+    function makeCube(mat, w, h, d, posX, posY, posZ, rotX, rotY, rotZ) {
+      let geom = new THREE.SphereGeometry(w, h, d)
+      let res = new THREE.Mesh(geom, mat)
+      res.position.x = posX
+      res.position.y = posY
+      res.position.z = posZ
+      res.rotation.x = rotX
+      res.rotation.y = rotY
+      res.rotation.z = rotZ
+      return res
+    }
+    function getSmokeParticle () {
+      let p
+      if (!awaitingSmokeParticles.length) {
+        p = new SmokeParticle()
+      }
+      p = awaitingSmokeParticles.pop()
+      return p
+    }
+    function makeShadow (obj) {
       if (obj instanceof THREE.Object3D) {
         obj.castShadow = true
         obj.receiveShadow = true
       }
     }
+
+    function substractMesh (basic, substract, mat) {
+      var material = new THREE.MeshBasicMaterial()
+      var mesh1 = new THREE.Mesh(basic, material)
+      var mesh2 = new THREE.Mesh(substract, material)
+      var basicBSP = new ThreeBSP(mesh1)
+      var substractBSP = new ThreeBSP(mesh2)
+      var res = basicBSP.subtract(substractBSP)
+      res = res.toMesh()
+      res.geometry.computeFaceNormals()
+      res.geometry.computeVertexNormals()
+      res.material = mat
+      return res
+    }
+
+    window.utils.resize(camera, renderer)
   </script>
 </body>
 

@@ -201,7 +201,6 @@
     //   home = new Home()
     //   forest = new Forest()
     //   scene.add(ground, grass, home, forest)
-        scene.add(ground)
     }
 
     function createClouds() {
@@ -399,7 +398,7 @@
         roughness: .8,
         // wireframe: true
       })
-      var basicMesh = new THREE.Mesh(basicGeeom, basicMat)
+      var basicMesh = new THREE.Mesh(basicGeom, basicMat)
       var chimneyGeom = new THREE.BoxGeometry(chimneyBasicWidth * .65, chimneyBasicDeep * 1.2, chimneyBasicHeight * .65)
       var chimneyMat = new THREE.MeshStandardMaterial({
         color: color.house,
@@ -600,7 +599,7 @@
       house.chimney.cooking()
       cloud1.fly()
       cloud2.fly()
-    //   requestAnimationFrame(loop)
+      requestAnimationFrame(loop)
     }
 
     init()
